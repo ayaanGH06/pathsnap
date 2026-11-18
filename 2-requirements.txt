@@ -1,2 +1,0 @@
-# PathSnap dependencies.
-# Filled in as the project is built; install with: pip install -r requirements.txt
