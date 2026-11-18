@@ -3,3 +3,6 @@ numpy>=1.26
 pandas>=2.1
 scikit-learn>=1.4
 pyarrow>=14.0  # Required for Parquet candidate tables; CSV fallback also works.
+shapely>=2.0
+pyproj>=3.6
+matplotlib>=3.8
