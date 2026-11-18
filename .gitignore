@@ -225,7 +225,7 @@ __marimo__/
 
 # --- PathSnap project (base document, D1) ---
 # Raw dataset and processed data files are never committed
-data/
+/data/
 *.track
 *.nodes
 *.arcs
