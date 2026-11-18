@@ -9,7 +9,7 @@ Evaluator data was never opened.
 - Trips analysed: 80 train + 10 student_test = 90.
 - Files per trip: 4 (`<id>.track`, `<id>.nodes`, `<id>.arcs`, `<id>.route`).
 - Trip ids are zero-padded strings (e.g. `00000001`).
-- GPS observations per trip: min ___, median ___, max ___.
+- GPS observations per trip: min 262, median 1,496.5, max 19,313 (all 90 trips).
 - Examples: trip 00000001 has 1,315 observations, 88,809 nodes, 165,790 arcs
   and a 525-arc reference route. Trip 00000004 has 1,064 observations,
   7,350 nodes, 15,499 arcs and a 320-arc route.
@@ -21,8 +21,8 @@ Evaluator data was never opened.
 - Timestamp ordering: 0 unsorted trips, 0 duplicate timestamps.
 - Irregular sampling: 66 of 90 trips have at least one gap longer than 1 s.
 - Share of exactly 1 s steps per trip: median 99.14 %, mean 94.32 %,
-  lowest 53.07 % (trip ___).
-- Largest gap: 153,064 s (about 42 hours) in trip ___. The mean of the
+  lowest 53.07 % (train trip 00000022).
+- Largest gap: 153,064 s (about 42 hours) in train trip 00000090. The mean of the
   per-trip maximum gap is 2,408 s, so a few trips have extreme gaps.
 - Step length between consecutive points: median of per-trip medians 13.18 m,
   highest per-trip median 41.27 m (trip 00000001, which looks like a
@@ -41,7 +41,7 @@ Evaluator data was never opened.
 ## 3. Road network (A3) -> results/data/network.csv
 - Arcs are directed. The share of arcs that have a reverse arc is
   median 95.11 %, minimum 35.10 %, maximum 100 %.
-- Isolated nodes: ___ (count of trips with any isolated node).
+- Isolated nodes: 0 trips with any isolated node (all 90 trips).
 - Connected components per trip (undirected view): min 1, median 19,
   mean 37.2, max 421.
 - Consequence: some arcs are unreachable from others, so connectivity
@@ -55,12 +55,12 @@ Evaluator data was never opened.
   never in degrees.
 
 ## 5. Reference route (A4) -> results/data/reference_check.csv
-- Command: `python -m data_processing.reference 5`
-- Route arcs form a connected chain: ___ % of consecutive arcs (median).
-- Distance from GPS points to the nearest route arc: median ___ m,
-  95th percentile ___ m.
-- Monotone snap agrees with nearest-arc for ___ % of observations.
-- Labelling rule (to confirm after the check): each observation is assigned
+- Command: `python -m data_processing.reference all` (the committed reference check covers all 80 train trips)
+- Route arcs form a connected chain: 100 % of consecutive arcs (median across 80 train trips).
+- Distance from GPS points to the nearest route arc: median of trip medians 4.5 m; median of trip-level
+  95th percentiles 14.25 m (80 train trips, not pooled percentiles).
+- Median per-trip monotone-snap agreement with nearest-arc is 97.5 % (80 train trips, not pooled).
+- Labelling rule used for the frozen v1 tables: each observation is assigned
   the route arc found by an in-order (monotone) snap to the route.
 - Limitations: the reference route is not perfect truth. GPS has no direct
   row link to the route. Gaps mean some route arcs receive no observation.
@@ -109,7 +109,13 @@ Diagnostic: `features/diagnose_trips.py`, results in `results/data/trip_diagnost
 | 33 | 5,844 | 59.0 % | 7.0 m | 122.4 m |
 | 2 | 7,243 | 12.0 % | 5.4 m | 5.8 m |
 
-- Trip 54: the GPS is far from every road in its network (nearest arc at most 121.9 m away).
+- Trip 54: many GPS observations are far from every road in its network (median nearest-road distance 84.2 m, maximum 121.9 m). The root cause is not established.
 - Trip 33: the GPS is on a road, but the reference route is far from it for much of the trip. In 50 windows of 60 consecutive far observations, the median GPS path length is 451.6 m and the median net displacement is 8.1 m, which indicates GPS jitter at a stop. Why the reference route does not cover that location is not established.
 - Trip 2: 41 time gaps over 10 s (largest 160 s); 76 % of the last tenth of the trip is far from the reference.
 - Because the reference route itself is far from the GPS in these observations, a model based on geometry features is unlikely to predict the reference arc there. Pooled accuracy is strongly affected by these trips (trip 54 alone is 19,313 of the 208,417 train observations), so the team should decide whether to also report results without them.
+
+## 10. Inference and EDA report handoff (A12-A13)
+
+- Label-free frozen-v1 pipeline: `features/pipeline.py`; API and checks are documented in `features/PIPELINE.md`.
+- Report section source: `data_processing/eda_report.md`; aggregate figure: `results/data/figures/eda_summary.png`.
+- `features/FEATURES.md` is the ten-column feature dictionary. No feature or radius change was made.
