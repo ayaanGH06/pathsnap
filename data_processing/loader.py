@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-VALID_PARTITIONS = ("train", "student_test")
+VALID_PARTITIONS = ("train", "student_test", "evaluator_test")
 
 
 def get_data_root() -> Path:
