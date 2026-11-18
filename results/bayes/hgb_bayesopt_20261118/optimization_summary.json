@@ -1,0 +1,36 @@
+{
+  "objective": "observation-level Top-1 accuracy across all training observations",
+  "student_test_used_for_tuning": false,
+  "search_cv_folds": 3,
+  "final_cv_folds": 5,
+  "splitter": "GroupKFold grouped by trip_id",
+  "seed": 42,
+  "candidate_radius_m": 50,
+  "feature_columns": [
+    "dist_to_arc",
+    "proj_frac",
+    "arc_len",
+    "heading_diff",
+    "speed",
+    "dt_prev",
+    "dist_rank",
+    "dist_minus_min",
+    "n_cand",
+    "conn_prev"
+  ],
+  "outlier_diagnostic_trips": [
+    "00000033",
+    "00000054"
+  ],
+  "trials": 10,
+  "best_config": {
+    "max_iter": 100,
+    "learning_rate": 0.05,
+    "max_leaf_nodes": 15,
+    "min_samples_leaf": 10,
+    "l2_regularization": 0.0
+  },
+  "best_search_cv_top1_all": 0.74700240383462,
+  "baseline_search_cv_top1_all": 0.7452463090822725,
+  "run_timestamp": "2026-11-18T14:03:03.326009+05:30"
+}
