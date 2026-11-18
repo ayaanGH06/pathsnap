@@ -33,7 +33,16 @@ NEG_INF = -np.inf  # marks a forbidden candidate or an impossible transition
 
 
 class NoFeasiblePathError(ValueError):
-    """Raised when no candidate sequence survives the transition constraints."""
+    """Raised when no candidate sequence survives the transition constraints.
+
+    `step` is the observation index (within the decoded sequence) at which every
+    path died, or None if not known. Callers such as hmm/decoder.py use it to
+    restart the chain there instead of failing.
+    """
+
+    def __init__(self, message="", step=None):
+        super().__init__(message)
+        self.step = step
 
 
 def _check_scores(arr, name):
@@ -107,7 +116,7 @@ def viterbi_decode(log_emissions, log_transitions, log_start=None,
     delta = start + emissions[0]
     if np.all(np.isneginf(delta)):
         raise NoFeasiblePathError(
-            "every candidate at observation 0 is forbidden (-inf)")
+            "every candidate at observation 0 is forbidden (-inf)", step=0)
 
     backpointers = [np.zeros(emissions[0].size, dtype=np.int32)]
     transitions = iter(log_transitions)
@@ -132,7 +141,7 @@ def viterbi_decode(log_emissions, log_transitions, log_start=None,
         if np.all(np.isneginf(delta)):
             raise NoFeasiblePathError(
                 f"no reachable candidate at observation {t}: every "
-                "path into it has score -inf")
+                "path into it has score -inf", step=t)
         backpointers.append(best_prev.astype(np.int32))
 
     sentinel = object()

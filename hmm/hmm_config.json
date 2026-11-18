@@ -1,0 +1,19 @@
+{
+  "_note": "Frozen decoder settings. Selected on 20 training trips (every 4th sorted id) using out-of-fold scores of a same-configuration refit of B's HGB (models/evaluate.py roster), a development selection and not held-out performance. Then evaluated once on student-test with the saved artifact scores (results/hmm/final_student_test_artifact.json). No re-tuning was done after any student-test result. See results/hmm/tuning_log_hist_gradient_boosting.csv and review_notes.md.",
+  "emission_mode": "classifier",
+  "emission_weight": 0.5,
+  "prob_floor": 1e-6,
+  "sigma_m": 7.5,
+  "max_candidates": 20,
+  "beta_m": 5.0,
+  "uturn_penalty": 15.0,
+  "unreachable_penalty": null,
+  "gap_restart_s": 120.0,
+  "max_speed_mps": 45.0,
+  "search_speed_mps": 45.0,
+  "slack_m": 60.0,
+  "search_cap_m": 3000.0,
+  "back_tol_m": 15.0,
+  "fill_missing": "carry",
+  "fill_max_gap_s": 30.0
+}
