@@ -34,8 +34,8 @@ The raw dataset is not in git. Unzip it so that this layout exists, and point `P
 export PATHSNAP_DATA_ROOT="/path/to/Student folder"      # Windows PowerShell: $env:PATHSNAP_DATA_ROOT="C:\path\Student folder"
 ```
 
-At the evaluation, put the ten evaluator trips in the folder named by `PATHSNAP_PARTITION`
-(default `student_test`) under that root. The `.route` file is optional: without it the API still
+At the evaluation, put the ten evaluator trips in `<DATA_ROOT>/evaluator_test/` and start with
+`PATHSNAP_PARTITION=evaluator_test` (default is `student_test`). The evaluator data stays out of git. The `.route` file is optional: without it the API still
 predicts and just returns no accuracy.
 
 ## 3. Run
@@ -60,8 +60,8 @@ Full two-laptop checklist, trips to show and fallbacks: [DEMO.md](DEMO.md).
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `PATHSNAP_DATA_ROOT` | `data` | folder holding `train/` and `student_test/` |
-| `PATHSNAP_PARTITION` | `student_test` | partition the API lists and predicts |
+| `PATHSNAP_DATA_ROOT` | `data` | folder holding `train/`, `student_test/` and (at the evaluation) `evaluator_test/` |
+| `PATHSNAP_PARTITION` | `student_test` | partition the API lists and predicts: `train`, `student_test` or `evaluator_test` |
 | `PATHSNAP_CORS_ORIGINS` | empty | extra comma-separated browser origins. localhost and private-network (10.x, 172.16-31.x, 192.168.x) origins are always allowed |
 | `PATHSNAP_API_HOST` / `PATHSNAP_API_PORT` | `0.0.0.0` / `8000` | documented defaults |
 
@@ -100,4 +100,16 @@ Integrity: `cd models/artifacts && sha256sum -c CHECKSUMS.sha256`.
 Inference path for one trip: `features/pipeline.py` (50 m, 10 features) -> saved model `predict_proba` (class 1) ->
 `hmm/decoder.py decode_detailed` -> route. Training and tuning scripts (`models/`, `bayes_opt/`, `hmm/experiment.py`) are
 included for reproducibility only; they are not needed to run predictions.
-Reported result: 93.52% pointwise accuracy over all 19,160 student-test observations (classifier alone 85.80%).
+Reported results (pointwise accuracy over ALL GPS observations, same saved model and frozen decoder config in both runs, no tuning on either set):
+
+| Partition | Observations | Classifier alone | Classifier + HMM |
+|---|---|---|---|
+| student_test (10 trips) | 19,160 | 85.80% | 93.52% |
+| evaluator_test (10 trips, one frozen run) | 19,674 | 79.93% | 94.72% (18,636 / 19,674) |
+
+The two are separate results. Per-trip evaluator accuracy ranges from 88.53% to 99.71%, so no single trip is guaranteed above 93%.
+Evaluator aggregates (no coordinates): `results/hmm/evaluator_frozen_run_evidence.json` (independent frozen run) and
+`results/api/api_check_evaluator_test.json` (the same trips through the API: `PATHSNAP_PARTITION=evaluator_test python scripts/check_all_trips.py`).
+Missing candidates: the frozen decoder config uses `fill_missing: carry` (chosen on training trips). An observation with no candidate within 50 m
+takes the nearest decoded neighbour's arc if within 30 s of track time, using only decoded predictions and timestamps, never the reference. Anything still unfilled is -1 and counts wrong.
+student_test had 0 no-candidate observations (0 fills); evaluator_test has 21, all on trip 00000015, all filled, 12 of them correct. They are inside the 94.72% denominator.

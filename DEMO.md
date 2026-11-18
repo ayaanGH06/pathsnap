@@ -20,17 +20,19 @@ Use `http://`, not `https://`. Browser origins outside localhost/private network
 2. 00000007: 89.1%. Route looks right but errors are mostly the reverse direction of the correct road (reverse twin arcs). Honest weak spot of the decoder.
 3. 00000077: weakest trip, 86.2%, long drive with a loop.
 4. Mention a bigger one (00000056, 3958 points, about 2 s) to show speed.
-Numbers are from the real run in `results/api/api_check_student_test.json` (pooled 93.52% pointwise over 19,160 observations, 10 trips).
+For the grading set use `PATHSNAP_PARTITION=evaluator_test` (folder `<DATA_ROOT>/evaluator_test/`); results are in `results/api/api_check_evaluator_test.json` (94.72% pooled over 19,674 observations).
+Numbers above are from the real run in `results/api/api_check_student_test.json` (pooled 93.52% pointwise over 19,160 observations, 10 trips).
 
 ## Who explains what
-- A: data and features. 50 m candidates, 10 features, why a point can have no candidate (map shows it as unmatched, never dropped).
+- A: data and features. 50 m candidates, 10 features, why a point can have no candidate (such a point is never dropped: the frozen decoder fills it from the nearest decoded neighbour within 30 s, otherwise it counts wrong).
 - B: model. Saved HistGradientBoosting scores each candidate; chosen by trip-grouped cross-validation.
 - C: decoder. HMM/Viterbi picks a connected arc sequence; main weakness is reverse-direction arcs.
 - D: API and UI. Prediction first, reference route read afterwards, only for accuracy.
 
 ## Say honestly
 - Metric is per GPS point against the project's reference labels, not full-route sequence accuracy.
-- Decoder tuned on training trips only; student-test numbers were not used for tuning.
+- Decoder tuned on training trips only; student-test and evaluator-test numbers were not used for tuning.
+- Student-test 93.52% and evaluator-test 94.72% are two separate runs of the same frozen model; per-trip accuracy on evaluator ranges 88.5% to 99.7%.
 - Predicted line is drawn from road segments; the road geometry is only the supplied nodes/arcs.
 
 ## If the network fails
