@@ -1,0 +1,23 @@
+{
+  "feature_version": "v1",
+  "radius_m": 50,
+  "reference_route_reads": 0,
+  "partitions": {
+    "train": {
+      "trips": 80,
+      "n_obs": 208417,
+      "candidate_rows": 1867152,
+      "zero_candidate_obs": 18230,
+      "builder_exact_parity": true,
+      "processed_parquet_checked": true
+    },
+    "student_test": {
+      "trips": 10,
+      "n_obs": 19160,
+      "candidate_rows": 209121,
+      "zero_candidate_obs": 0,
+      "builder_exact_parity": true,
+      "processed_parquet_checked": true
+    }
+  }
+}
