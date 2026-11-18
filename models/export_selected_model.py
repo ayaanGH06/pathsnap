@@ -37,6 +37,7 @@ STUDENT_OBS_PATH = ROOT / "data/processed/obs_student_test.parquet"
 ARTIFACT_DIR = ROOT / "models/artifacts"
 OPT_DIR = ROOT / "results/bayes/hgb_bayesopt_20261118"
 TEST_OUTPUT = ROOT / "results/bayes/selected_hgb_student_test.csv"
+TUNED_TEST_OUTPUT = ROOT / "results/bayes/tuned_hgb_student_test.csv"
 
 
 def main() -> None:
@@ -97,8 +98,22 @@ def main() -> None:
         train, student, student_obs, features, OUTLIER_TRIPS,
     )
     pd.DataFrame(student_rows).to_csv(TEST_OUTPUT, index=False)
+
+    # The CV-based selection is already frozen. Evaluate the tuned candidate
+    # once on the held-out student-test partition only to complete the required
+    # baseline-vs-tuned comparison; these metrics do not change selection.
+    tuned_config = search_summary["best_config"]
+    tuned_pipeline, tuned_baseline = model_roster()["hist_gradient_boosting"]
+    tuned_pipeline.set_params(**{f"model__{name}": value for name, value in tuned_config.items()})
+    tuned_metadata = {**tuned_baseline, **tuned_config, "family": "boosting_bayes_optimized"}
+    tuned_rows, _ = evaluate_student(
+        "hist_gradient_boosting_bayes_optimized", tuned_pipeline, tuned_metadata,
+        train, student, student_obs, features, OUTLIER_TRIPS,
+    )
+    pd.DataFrame(tuned_rows).to_csv(TUNED_TEST_OUTPUT, index=False)
     print(f"Exported {artifact_path.relative_to(ROOT)}")
-    print(f"Saved one-time held-out student-test metrics to {TEST_OUTPUT.relative_to(ROOT)}")
+    print(f"Saved selected-model student-test metrics to {TEST_OUTPUT.relative_to(ROOT)}")
+    print(f"Saved post-selection tuned-candidate comparison to {TUNED_TEST_OUTPUT.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":
