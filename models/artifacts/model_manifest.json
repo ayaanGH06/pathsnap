@@ -1,0 +1,51 @@
+{
+  "model_name": "HistGradientBoostingClassifier (hist_gradient_boosting_baseline)",
+  "artifact": "pathsnap_selected_model.joblib",
+  "purpose": "Score each candidate road; class 1 probability means candidate matches reference road.",
+  "positive_class": 1,
+  "feature_columns_in_required_order": [
+    "dist_to_arc",
+    "proj_frac",
+    "arc_len",
+    "heading_diff",
+    "speed",
+    "dt_prev",
+    "dist_rank",
+    "dist_minus_min",
+    "n_cand",
+    "conn_prev"
+  ],
+  "preprocessing_included": [
+    "SimpleImputer(strategy='median')",
+    "no feature scaling (tree model)"
+  ],
+  "model_config": {
+    "family": "boosting",
+    "max_iter": 150,
+    "learning_rate": 0.1,
+    "l2_regularization": 1.0,
+    "max_leaf_nodes": 31,
+    "min_samples_leaf": 20
+  },
+  "selection_objective": "5-fold trip-grouped CV observation-level Top-1 across all training observations",
+  "selection_reason": "Baseline HGB had higher 5-fold all-trip Top-1; tuning did not improve the primary metric.",
+  "optimization_best_config": {
+    "max_iter": 100,
+    "learning_rate": 0.05,
+    "max_leaf_nodes": 15,
+    "min_samples_leaf": 10,
+    "l2_regularization": 0.0
+  },
+  "selection_cv": {
+    "search_folds": 3,
+    "final_folds": 5,
+    "grouped_by": "trip_id",
+    "seed": 42
+  },
+  "candidate_radius_m": 50,
+  "student_test_used_for_tuning": false,
+  "training_candidate_rows": 1867152,
+  "training_observations": 208417,
+  "python_sklearn_version": "1.9.1",
+  "load_note": "Load with a compatible scikit-learn version; see artifacts/README.md."
+}

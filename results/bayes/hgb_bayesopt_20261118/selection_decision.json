@@ -1,0 +1,19 @@
+{
+  "primary_metric": "5-fold trip-grouped CV observation-level Top-1 across all training observations",
+  "secondary_metric": "candidate log loss on candidate rows",
+  "student_test_used_for_selection": false,
+  "seed": 42,
+  "baseline_5fold_cv_top1_all": 0.7478276724067614,
+  "tuned_5fold_cv_top1_all": 0.7474822111440046,
+  "baseline_5fold_candidate_log_loss": 0.09218480273675363,
+  "tuned_5fold_candidate_log_loss": 0.09230765590868335,
+  "selected_model": "hist_gradient_boosting_baseline",
+  "selected_config": {
+    "max_iter": 150,
+    "learning_rate": 0.1,
+    "max_leaf_nodes": 31,
+    "min_samples_leaf": 20,
+    "l2_regularization": 1.0
+  },
+  "reason": "Baseline HGB had higher 5-fold all-trip Top-1; tuning did not improve the primary metric."
+}

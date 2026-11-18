@@ -57,3 +57,24 @@ All models must use the same candidate-table version and fold count. Grouped CV 
 - Route continuity is N/A here; C measures that with the graph-aware HMM/Viterbi decoder.
 
 The five models are starting candidates, not selected winners. Choose the final model using actual CV and student-test results, fold stability, probability quality, inference time, and decoder compatibility. Do not treat synthetic smoke-check scores as experiment results.
+
+## Person B: tuning, comparison, and export
+
+The Bayesian search tunes HistGradientBoosting on trip-grouped training CV only;
+it does not load student-test data. Its primary objective is all-trip,
+observation-level Top-1, with trips 33 and 54 retained in the main objective.
+The outlier-excluded slice is diagnostic. Search history, sampled
+configurations, and the selected configuration are saved in `results/bayes/`.
+
+```bash
+python -m bayes_opt.optimize_hgb
+python -m bayes_opt.finalize_hgb
+python models/export_selected_model.py
+python models/build_model_comparison.py
+```
+
+The selected `Pipeline` (including median imputation) and its handoff contract
+are saved under `models/artifacts/`. See `models/model_notes.md` for B's
+Random Forest/MLP/KNN evidence and `models/model_selection.md` for the primary
+metric, comparison, and selection rationale. The held-out student-test result
+is evaluated after the hyperparameters are frozen; it is not part of the search.
