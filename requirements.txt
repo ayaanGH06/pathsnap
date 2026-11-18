@@ -1,2 +1,10 @@
-# PathSnap dependencies.
-# Filled in as the project is built; install with: pip install -r requirements.txt
+# PathSnap runtime dependencies
+fastapi>=0.115,<1
+uvicorn[standard]>=0.30,<1
+pydantic>=2.7,<3
+pandas>=2.2,<3
+numpy>=1.26,<3
+scikit-learn>=1.5,<2
+matplotlib>=3.8,<4
+pytest>=8,<10
+httpx>=0.27,<1
