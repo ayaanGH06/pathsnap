@@ -1,152 +1,61 @@
-"""features/diagnose_trips.py
+# Frozen features v1
 
-Why do some trips (e.g. 54, 33, 2) miss so many reference arcs at 50 m?
+Status: **v1 frozen**, 50 m candidate radius. This dictionary describes the
+existing training code in `features/build_tables.py`, not a new feature version.
+No feature, radius, label or model was changed by the A12 inference handoff.
 
-For each chosen trip, per GPS observation (no radius limit):
-  d_ref   distance (m) to the observation's labelled reference arc
-  d_near  distance (m) to the nearest arc anywhere in that trip's network
-and a few trip-level checks (time gaps, track vs network extent, where along the trip
-the far observations sit).
+Each row is one `(trip_id, obs_idx, arc_id)` candidate. Trip ids identify their
+own road network; arc ids are zero-based row indices within that trip only.
+Candidates are sorted by observation and then ascending distance. Equal-distance
+ties keep the builder's existing order; inference does not reorder them.
 
-How to read the result:
-  * d_near large for the far observations  -> GPS is far from EVERY road in that trip's
-    network (network/extract mismatch or GPS error); a bigger radius mostly finds wrong roads.
-  * d_near small but d_ref large           -> GPS sits on some road, but the reference route
-    follows a different one (reference/label issue, or a parallel road).
-  * d_ref - d_near > 50 for many obs        -> same idea, counted directly.
+## Model columns, in required order
 
-Usage (repo root, PATHSNAP_DATA_ROOT exported):
-    python -m features.diagnose_trips train 54 33 2
-    python -m features.diagnose_trips train            (defaults to 54 33 2)
+| Column | Stored dtype | Definition | Reason |
+|---|---|---|---|
+| `dist_to_arc` | float32 | Exact point-to-segment distance in metres, in the trip's UTM projection | Nearby roads are more plausible |
+| `proj_frac` | float32 | Position of the perpendicular projection along the directed segment, clipped to [0,1] | Distinguishes endpoints from segment interiors |
+| `arc_len` | float32 | Segment length in metres; squared length is floored at 1e-12 before square root | Describes local road geometry |
+| `heading_diff` | float32 | Absolute wrapped difference [0,180] degrees between arc bearing and GPS movement bearing | Distinguishes opposite road directions |
+| `speed` | float32 | Distance from previous GPS point divided by its real timestamp gap, with denominator floor 1e-6 seconds; first observation copies first step; singleton is 0 | Motion context |
+| `dt_prev` | float32 | Actual previous timestamp gap in seconds; first copies first step; singleton is 1 | Makes irregular sampling visible |
+| `dist_rank` | int16 | One-based distance rank among this observation's candidates | Relative proximity |
+| `dist_minus_min` | float32 | Distance minus this observation's minimum candidate distance, in metres | Relative separation from best geometric candidate |
+| `n_cand` | int16 | Number of arcs within 50 m of this observation | Local ambiguity |
+| `conn_prev` | int8 | 1 if this arc is also a previous-observation candidate, or starts at the end node of any previous-observation candidate; otherwise 0 | Directed one-hop continuity without reference labels |
 
-Only 'train' and 'student_test' are accepted. Never run on evaluator data.
-Writes: results/data/trip_diagnostic_<partition>.json (summary, commit this),
-        results/data/figures/trip_<id>_diag_<partition>.png (plot, partition in title),
-        data/processed/diag_<partition>_<id>.parquet (per-observation, not committed).
-"""
-import json
-import sys
-from pathlib import Path
+Vehicle heading uses the displacement from the preceding to following GPS
+observation (one-sided at the ends). If its length is under 1 m, heading difference
+is set to the neutral value 90 degrees. Features therefore use the whole trip,
+including the next GPS point, and are not a causal live-streaming API.
 
-import numpy as np
-import pandas as pd
-import shapely
-from shapely import STRtree
+Distances use one UTM zone selected from the trip track centroid, with longitude
+and latitude in their original order. The same projection and geometry helpers
+are called during training and inference. No learned transforms are fitted here;
+B's saved model contains its own preprocessing.
 
-from data_processing.loader import list_trips, load_trip
-from features.build_tables import _geometry, reference_arcs
-from features.candidates import pair_dist
+## Metadata and labels
 
-ALLOWED = {"train", "student_test"}
+- `trip_id`: string; `obs_idx` and `arc_id`: int32 in the candidate table.
+- `label`: int8 in training/student-test tables only. It identifies the arc
+  assigned by in-order snapping to the reference route. It is not a feature.
+- Inference candidates have no `label` or `ref_arc`, and load no `.route` file.
+- Zero-candidate observations have no candidate rows. Keep the full track and
+  observation sidecar; never use the candidate rows alone as the denominator.
+- Candidate counts/ranks preserve the original builder's dtypes. They are not
+  recast or expanded by this handoff.
 
+## Reproduction and version policy
 
-def pct(a, q):
-    return float(np.nanpercentile(a, q))
+Training tables: `python -m features.build_tables 50` with
+`PATHSNAP_DATA_ROOT` pointing at the original dataset root.
+Inference: see [PIPELINE.md](PIPELINE.md).
 
+The train reference miss rate at 50 m is 11.16%; student-test is 0.14%.
+A missing reference candidate cannot be recovered by a candidate-only classifier.
+The 150 m and 200 m settings were not model-tested. Any radius/feature change
+requires an explicit v2 decision, rebuilt tables and rerun models. Do not silently
+remove train trips 33 or 54 or reinterpret their labels.
 
-def diagnose(tid, part):
-    track, nodes, arcs, route = load_trip(tid, part)
-    P, A, B = _geometry(track, nodes, arcs)
-    ref = reference_arcs(track, nodes, arcs, route)
-    n = len(P)
-
-    d_ref = pair_dist(P, A[ref], B[ref])
-
-    tree = STRtree(shapely.linestrings(np.stack([A, B], axis=1)))
-    (inp, tr), dn = tree.query_nearest(shapely.points(P), return_distance=True, all_matches=False)
-    near_arc = np.full(n, -1, dtype=np.int64)
-    d_near = np.full(n, np.nan)
-    near_arc[inp] = tr
-    d_near[inp] = dn
-
-    t = track["t"].values.astype(float)
-    dt = np.diff(t) if n > 1 else np.zeros(1)
-
-    net = np.vstack([A, B])
-    lo, hi = net.min(0), net.max(0)
-    outside = ((P < lo) | (P > hi)).any(1)
-
-    chunks = np.array_split(np.arange(n), 10)
-    chunk_far = [float((d_ref[c] > 50).mean()) for c in chunks]
-
-    s = {
-        "partition": part, "trip_id": tid,
-        "n_obs": int(n), "n_arcs": int(len(arcs)), "n_route_arcs": int(len(route)),
-        "max_gap_s": float(dt.max()), "n_gaps_gt_10s": int((dt > 10).sum()),
-        "frac_track_outside_network_bbox": float(outside.mean()),
-        "d_ref_m": {"median": pct(d_ref, 50), "p90": pct(d_ref, 90), "p99": pct(d_ref, 99), "max": float(d_ref.max())},
-        "d_near_m": {"median": pct(d_near, 50), "p90": pct(d_near, 90), "p99": pct(d_near, 99), "max": float(np.nanmax(d_near))},
-        "frac_d_ref_gt_50": float((d_ref > 50).mean()),
-        "frac_d_ref_gt_150": float((d_ref > 150).mean()),
-        "frac_d_near_gt_50": float((d_near > 50).mean()),
-        "frac_d_near_gt_150": float((d_near > 150).mean()),
-        "frac_nearest_is_reference_arc": float((near_arc == ref).mean()),
-        "frac_ref_farther_than_nearest_by_gt_50": float(((d_ref - d_near) > 50).mean()),
-        "frac_far_by_tenth_of_trip": [round(x, 3) for x in chunk_far],
-    }
-
-    Path("data/processed").mkdir(parents=True, exist_ok=True)
-    pd.DataFrame({"obs_idx": np.arange(n), "t": t, "ref_arc": ref, "d_ref": d_ref,
-                  "near_arc": near_arc, "d_near": d_near}
-                 ).to_parquet(f"data/processed/diag_{part}_{tid}.parquet", index=False)
-    return s, (P, A, B, route, d_ref)
-
-
-def plot(tid, part, P, A, B, route, d_ref):
-    try:
-        import matplotlib
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-        from matplotlib.collections import LineCollection
-    except ImportError:
-        print("matplotlib not installed, skipping plot")
-        return
-    r = np.unique(route.astype(int))
-    fig, ax = plt.subplots(figsize=(9, 9))
-    ax.add_collection(LineCollection(np.stack([A, B], axis=1), colors="lightgray",
-                                     linewidths=0.4, label="road network"))
-    ax.add_collection(LineCollection(np.stack([A[r], B[r]], axis=1), colors="tab:blue",
-                                     linewidths=1.3, label="reference route"))
-    far = d_ref > 50
-    ax.scatter(P[~far, 0], P[~far, 1], s=2, c="tab:green", label="GPS, within 50 m of its reference arc")
-    ax.scatter(P[far, 0], P[far, 1], s=2, c="tab:red", label="GPS, farther than 50 m")
-    ax.set_aspect("equal")
-    ax.autoscale()
-    ax.set_xlabel("x (m, per-trip UTM)")
-    ax.set_ylabel("y (m, per-trip UTM)")
-    ax.set_title(f"Trip {tid} ({part} partition): GPS vs reference route")
-    ax.legend(loc="best", markerscale=4, fontsize=8)
-    out = Path("results/data/figures")
-    out.mkdir(parents=True, exist_ok=True)
-    f = out / f"trip_{tid}_diag_{part}.png"
-    fig.savefig(f, dpi=130, bbox_inches="tight")
-    plt.close(fig)
-    print(f"Saved {f}")
-
-
-def main(part, trips):
-    if part not in ALLOWED:
-        sys.exit(f"Partition must be one of {sorted(ALLOWED)}")
-    known = set(map(str, list_trips(part)))
-    results = []
-    for tid in trips:
-        tid = str(tid).zfill(8)
-        if tid not in known:
-            print(f"Trip {tid} is not in the {part} partition, skipping")
-            continue
-        s, geo = diagnose(tid, part)
-        results.append(s)
-        print(json.dumps(s, indent=2))
-        plot(tid, part, *geo)
-    out = Path("results/data")
-    out.mkdir(parents=True, exist_ok=True)
-    f = out / f"trip_diagnostic_{part}.json"
-    f.write_text(json.dumps(results, indent=2))
-    print(f"\nSaved {f}")
-
-
-if __name__ == "__main__":
-    part = sys.argv[1] if len(sys.argv) > 1 else "train"
-    trips = sys.argv[2:] or ["54", "33", "2"]
-    main(part, trips)
-    
+This file replaces an accidental copy of older diagnostic Python code. The
+maintained diagnostic remains `features/diagnose_trips.py`; it was not changed.
