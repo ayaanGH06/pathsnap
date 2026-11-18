@@ -1,4 +1,14 @@
-const API_URL = window.PATHSNAP_API_URL || "http://localhost:8000";
+const params = new URLSearchParams(window.location.search);
+let API_URL = (params.get("api") || localStorage.getItem("pathsnap_api") ||
+  window.PATHSNAP_API_URL || "http://localhost:8000").replace(/\/+$/, "");
+const apiInput = document.querySelector("#api");
+apiInput.value = API_URL;
+apiInput.addEventListener("change", () => {
+  API_URL = apiInput.value.trim().replace(/\/+$/, "");
+  localStorage.setItem("pathsnap_api", API_URL);
+  predictButton.disabled = true;
+  loadTrips();
+});
 
 const tripSelect = document.querySelector("#trip");
 const predictButton = document.querySelector("#predict");
@@ -46,6 +56,11 @@ async function loadTrips() {
     }
     predictButton.disabled = false;
     setStatus("Select a trip and run prediction.");
+    const wanted = params.get("trip");  // optional: ?trip=00000052 auto-runs (demo screenshots)
+    if (wanted && [...tripSelect.options].some(o => o.value === wanted)) {
+      tripSelect.value = wanted;
+      predictButton.click();
+    }
   } catch (error) {
     tripSelect.innerHTML = '<option>Unavailable</option>';
     setStatus(error.message);
@@ -87,9 +102,11 @@ function drawMap() {
   if (!latestResponse) return;
 
   const nodes = latestResponse.map_geometry.nodes;
-  const projected = projectPoints(nodes);
-  context.strokeStyle = "#3b3b40";
-  context.lineWidth = 1;
+  const projectedList = projectPoints(nodes);
+  const projected = {};  // keyed by node_id (the API sends only nearby nodes)
+  nodes.forEach((node, i) => { projected[node.node_id] = projectedList[i]; });
+  context.strokeStyle = "#2c2c31";
+  context.lineWidth = 0.6;
   context.beginPath();
   for (const arc of latestResponse.map_geometry.arcs) {
     const from = projected[arc.from_node];
@@ -110,18 +127,18 @@ function drawMap() {
 
   if (latestResponse.predicted_route.length) {
     context.strokeStyle = "#d6b46a";
-    context.lineWidth = 4;
+    context.lineWidth = 3;
     context.lineJoin = "round";
     context.beginPath();
     let started = false;
+    const arcById = new Map(latestResponse.map_geometry.arcs.map(item => [item.arc_id, item]));
     for (const arcId of latestResponse.predicted_route) {
-      const arc = latestResponse.map_geometry.arcs.find(item => item.arc_id === arcId);
+      const arc = arcById.get(arcId);
       if (!arc) continue;
       const from = projected[arc.from_node];
       const to = projected[arc.to_node];
       if (!from || !to) continue;
-      if (!started) context.moveTo(from.x, from.y);
-      else context.lineTo(from.x, from.y);
+      context.moveTo(from.x, from.y);  // each arc drawn on its own: no invented connectors
       context.lineTo(to.x, to.y);
       started = true;
     }
@@ -129,15 +146,33 @@ function drawMap() {
   }
 }
 
+const METRIC_LABELS = {
+  observation_accuracy: "GPS points on the right road",
+  observations_correct: "Points correct",
+  observations_total: "Points in trip (all)",
+  unmatched_observations: "Points with no predicted road",
+  route_precision: "Route precision",
+  route_recall: "Route recall",
+};
+
 function showMetrics(metrics) {
   metricsElement.innerHTML = "";
   if (!metrics) return;
   for (const [name, value] of Object.entries(metrics)) {
     const item = document.createElement("div");
     item.className = "metric";
-    item.textContent = `${name}: ${typeof value === "number" ? value : JSON.stringify(value)}`;
+    const isRatio = typeof value === "number" && /accuracy|precision|recall/.test(name);
+    const shown = isRatio ? (value * 100).toFixed(1) + "%" : (typeof value === "number" ? value : JSON.stringify(value));
+    item.textContent = `${METRIC_LABELS[name] || name.replace(/_/g, " ")}: ${shown}`;
     metricsElement.appendChild(item);
   }
+  const help = document.createElement("div");
+  help.className = "metric";
+  help.style.gridColumn = "1 / -1";
+  help.style.color = "#aaa7a0";
+  help.textContent = "Accuracy: share of ALL GPS points whose predicted road equals the reference road (unmatched points count as wrong). " +
+    "Route precision / recall compare the SET of predicted roads with the set of reference roads (direction matters, order and repeats ignored); they are not route-sequence accuracy.";
+  metricsElement.appendChild(help);
 }
 
 predictButton.addEventListener("click", async () => {
@@ -151,7 +186,7 @@ predictButton.addEventListener("click", async () => {
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({trip_id: tripSelect.value}),
     });
-    setStatus(`Trip ${latestResponse.trip_id}: ${latestResponse.predicted_route.length} predicted arcs.`);
+    setStatus(`Trip ${latestResponse.trip_id}: ${latestResponse.predicted_route.length} predicted arcs, ${latestResponse.n_no_candidates} of ${latestResponse.gps_observations.length} GPS points had no candidate road within 50 m.`);
     showMetrics(latestResponse.evaluation_metrics);
     drawMap();
   } catch (error) {
