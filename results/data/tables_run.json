@@ -1,0 +1,30 @@
+{
+  "seed": 42,
+  "radius_m": 50.0,
+  "features": [
+    "dist_to_arc",
+    "proj_frac",
+    "arc_len",
+    "heading_diff",
+    "speed",
+    "dt_prev",
+    "dist_rank",
+    "dist_minus_min",
+    "n_cand",
+    "conn_prev"
+  ],
+  "train": {
+    "trips": 80,
+    "n_obs": 208417,
+    "n_rows": 1867152,
+    "miss_rate": 0.11164156474759734,
+    "seconds": 50.5
+  },
+  "student_test": {
+    "trips": 10,
+    "n_obs": 19160,
+    "n_rows": 209121,
+    "miss_rate": 0.0014091858037578175,
+    "seconds": 4.6
+  }
+}
