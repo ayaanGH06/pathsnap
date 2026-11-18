@@ -1,0 +1,11 @@
+{
+  "partition": "train",
+  "rows": 1867152,
+  "trips": 80,
+  "observations_with_candidates": 190187,
+  "duplicate_trip_obs_arc_rows": 0,
+  "label_values_not_0_or_1": 0,
+  "observations_with_more_than_one_positive": 0,
+  "max_positives_per_observation": 1,
+  "observations_with_zero_positive": 5038
+}
