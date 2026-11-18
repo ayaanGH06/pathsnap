@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PathSnap</title>
+  <style>
+    :root { color-scheme: dark; --bg:#171719; --panel:#222225; --gold:#d6b46a; --coral:#ff8066; --text:#f3efe7; --muted:#aaa7a0; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:Georgia,"Times New Roman",serif; }
+    header { display:flex; align-items:end; justify-content:space-between; padding:28px 40px 20px; border-bottom:1px solid #383838; }
+    h1 { margin:0; letter-spacing:.12em; font-size:clamp(28px,4vw,52px); }
+    main { display:grid; grid-template-columns:minmax(220px,300px) 1fr; min-height:calc(100vh - 110px); }
+    aside { padding:32px 24px; border-right:1px solid #383838; background:var(--panel); }
+    label { display:block; margin-bottom:10px; color:var(--muted); font-family:Arial,sans-serif; font-size:.78rem; letter-spacing:.12em; text-transform:uppercase; }
+    select,button,input { width:100%; border:1px solid #555; border-radius:2px; padding:12px; background:#19191b; color:var(--text); font:inherit; }
+    button { margin-top:12px; background:var(--gold); color:#171719; font-family:Arial,sans-serif; font-weight:700; cursor:pointer; }
+    button:disabled { opacity:.55; cursor:not-wait; }
+    #map { position:relative; overflow:hidden; min-height:520px; background:linear-gradient(145deg,#1b1b1e,#111114); }
+    canvas { display:block; width:100%; height:100%; }
+    #status { margin-top:18px; min-height:48px; color:var(--muted); font-family:Arial,sans-serif; line-height:1.5; }
+    .legend { position:absolute; left:24px; bottom:24px; padding:12px 14px; background:rgba(20,20,22,.92); border:1px solid #444; font-family:Arial,sans-serif; }
+    .legend span { display:inline-block; width:24px; height:3px; margin-right:7px; vertical-align:middle; }
+    .metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:8px; margin-top:16px; }
+    .metric { border-top:1px solid #555; padding-top:8px; font-family:Arial,sans-serif; }
+    @media(max-width:700px){ header{padding:20px}.brand{display:none} main{grid-template-columns:1fr} aside{border-right:0;border-bottom:1px solid #383838} #map{min-height:420px}}
+  </style>
+</head>
+<body>
+  <header><h1>PATHSNAP</h1><div class="brand">MAP-MATCHING OBSERVATORY</div></header>
+  <main>
+    <aside>
+      <label for="trip">Evaluation trip</label>
+      <select id="trip"><option>Loading trips…</option></select>
+      <button id="predict" disabled>Predict route</button>
+      <div id="status" role="status" aria-live="polite"></div>
+      <div id="metrics" class="metrics"></div>
+    </aside>
+    <section id="map" aria-label="Map route visualisation">
+      <canvas id="canvas"></canvas>
+      <div class="legend"><div><span style="background:var(--gold)"></span>Predicted route</div><div><span style="background:var(--coral);height:6px;border-radius:50%"></span>GPS observations</div></div>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
