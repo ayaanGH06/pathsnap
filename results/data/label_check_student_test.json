@@ -1,0 +1,11 @@
+{
+  "partition": "student_test",
+  "rows": 209121,
+  "trips": 10,
+  "observations_with_candidates": 19160,
+  "duplicate_trip_obs_arc_rows": 0,
+  "label_values_not_0_or_1": 0,
+  "observations_with_more_than_one_positive": 0,
+  "max_positives_per_observation": 1,
+  "observations_with_zero_positive": 27
+}

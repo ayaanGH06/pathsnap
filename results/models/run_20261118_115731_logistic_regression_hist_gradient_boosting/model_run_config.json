@@ -1,0 +1,29 @@
+{
+  "seed": 42,
+  "folds": 5,
+  "models": [
+    "logistic_regression",
+    "hist_gradient_boosting"
+  ],
+  "train_candidates": "data/processed/candidates_train.parquet",
+  "student_test_candidates": "data/processed/candidates_student_test.parquet",
+  "train_observations": "data/processed/obs_train.parquet",
+  "student_test_observations": "data/processed/obs_student_test.parquet",
+  "feature_columns": [
+    "dist_to_arc",
+    "proj_frac",
+    "arc_len",
+    "heading_diff",
+    "speed",
+    "dt_prev",
+    "dist_rank",
+    "dist_minus_min",
+    "n_cand",
+    "conn_prev"
+  ],
+  "outlier_trips_excluded_in_second_slice": [
+    "00000033",
+    "00000054"
+  ],
+  "run_timestamp": "2026-11-18T12:00:01.775981+05:30"
+}
