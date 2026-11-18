@@ -40,7 +40,7 @@ Permutation importance on student_test (log-loss increase when a feature is shuf
 
 All values are starting points, not tuned. HGB used all 150 rounds, so 150 is a cap and not a
 tuned stopping point; tuning belongs to Review 2. `balanced` weights in LR shift probabilities
-upward for the rare positive class, which probably explains part of its higher log loss (0.23 vs 0.09).
+upward for the rare positive class, which may explain part of its higher log loss (0.23 vs 0.09).
 That is a hypothesis; we did not test unweighted LR.
 
 ## C. Results and fit assessment
@@ -64,11 +64,14 @@ Reading these without overclaiming:
 - **Student-test is easier than CV for a known reason.** Top-1 counts a candidate miss as wrong. Train has 11.16% misses,
   student_test 0.14%. Among observations whose true arc is a candidate, Top-1 is LR 0.834 (CV) vs 0.847 (student_test)
   and HGB 0.842 vs 0.856. So the real gap is about 1.3-1.5 points, not the 10 points the headline numbers suggest. The cause of the miss-rate difference is still unexplained (A is checking).
-- **Overfitting.** LR shows none: fit-set Top-1 0.741 and log loss 0.232 equal CV (0.741, 0.232). HGB shows a mild gap:
-  fit-set log loss 0.074 vs CV 0.092 (student_test 0.072). Top-1 fit-set 0.769 vs CV 0.748, a 2-point gap. Both are small, so we do not see strong overfitting.
-- **Underfitting.** LR's log loss is about 2.5 to 3 times HGB's in both CV and student_test, and its fit-set score is no better than CV,
-  which fits a model too simple for these features. HGB's Top-1 is only 0.9 points higher on student_test, so Top-1 is limited
-  mostly by candidate misses and by features, not by model type.
+- **Overfitting (evidence-limited).** Fit-set scores are in-sample: the model was scored on its own training rows with the same
+  `observation_metrics` code and the same denominators as CV (all 80 train trips, 208,417 observations, candidate log loss over candidate rows),
+  so the numbers are comparable in units. For LR, fit-set Top-1 0.741 and log loss 0.232 match CV (0.741, 0.232), so we see no clear overfit signal.
+  Matching metrics do not prove there is none. HGB has a fit-vs-CV gap: log loss 0.074 vs 0.092 (student_test 0.072) and Top-1 0.769 vs 0.748.
+  The gap is small, and we did not test it further (for example with a different number of rounds or leaf size).
+- **Probability quality.** LR's candidate log loss is about 2.5 to 3 times HGB's in both CV and student_test, so its probabilities are weaker.
+  We have not diagnosed why. Possible reasons are its linear form, the `balanced` class weights, or both; we did not test them separately.
+  We do not call this underfitting. HGB's Top-1 is only 0.9 points higher on student_test, and Top-1 is limited by candidate misses.
 - **Fold stability.** Excluding trips 33 and 54, per-fold Top-1 is LR 0.759-0.891 and HGB 0.765-0.897 (fold 4 is lowest in both).
   Including all trips, fold 1 drops to 0.597 (LR) and 0.603 (HGB) because 31.8% of its observations are candidate misses.
   On student_test, per-trip Top-1 ranges 0.680-0.954 (LR) and 0.703-0.947 (HGB); trip 00000077 is lowest for both.
