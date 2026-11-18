@@ -75,3 +75,15 @@ def test_inference_never_trains(monkeypatch):
         trip_id="00000001",
     )
     assert len(out["per_observation"]) == 2
+
+
+def test_evaluator_partition_is_allowed_and_others_are_not(monkeypatch):
+    from api import config
+    from data_processing import loader
+    assert "evaluator_test" in config.VALID_PARTITIONS and "evaluator_test" in loader.VALID_PARTITIONS
+    monkeypatch.setenv("PATHSNAP_PARTITION", "evaluator_test")
+    assert config.get_settings().partition == "evaluator_test"
+    monkeypatch.setenv("PATHSNAP_PARTITION", "../train")
+    import pytest
+    with pytest.raises(Exception):
+        config.get_settings()
