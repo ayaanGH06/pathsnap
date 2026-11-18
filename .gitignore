@@ -238,3 +238,8 @@ secrets/
 # Large temp files
 *.tmp
 tmp/
+
+# generated maps and screenshots (raw coordinates, keep private)
+*_map.html
+results/maps/
+results/screenshots/

@@ -1,13 +1,20 @@
-# PathSnap runtime and data-processing dependencies
+# PathSnap runtime. Python 3.11+ (tested on 3.12).
+# Pins below match the environment the saved model was verified in
+# (scikit-learn 1.9.1 is what models/artifacts/model_manifest.json records).
+scikit-learn==1.9.1
+numpy==2.5.5
+pandas==3.1.1
+scipy==1.18.1
+pyarrow==26.0.1
+pyproj==3.8.0
+shapely==2.2.0
+joblib==1.6.0
+# API
 fastapi>=0.115,<1
 uvicorn[standard]>=0.30,<1
 pydantic>=2.7,<3
-pandas>=2.2,<3
-numpy>=1.26,<3
-scikit-learn>=1.5,<2
-matplotlib>=3.8,<4
+# tests / plots / maps
 pytest>=8,<10
 httpx>=0.27,<1
-pyarrow>=14.0
-shapely>=2.0
-pyproj>=3.6
+matplotlib>=3.8,<4
+folium>=0.17
