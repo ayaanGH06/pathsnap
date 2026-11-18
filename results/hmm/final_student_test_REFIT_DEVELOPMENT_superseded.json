@@ -1,0 +1,111 @@
+{
+  "status": "REFIT_DEVELOPMENT: interim same-configuration refit scores; superseded for reporting by final_student_test_artifact.json (B saved artifact)",
+  "score": "hist_gradient_boosting",
+  "config": {
+    "emission_mode": "classifier",
+    "emission_weight": 0.5,
+    "prob_floor": 1e-06,
+    "sigma_m": 7.5,
+    "max_candidates": 20,
+    "beta_m": 5.0,
+    "uturn_penalty": 15.0,
+    "unreachable_penalty": null,
+    "gap_restart_s": 120.0,
+    "max_speed_mps": 45.0,
+    "search_speed_mps": 45.0,
+    "slack_m": 60.0,
+    "search_cap_m": 3000.0,
+    "back_tol_m": 15.0,
+    "fill_missing": "carry",
+    "fill_max_gap_s": 30.0,
+    "_note": "Frozen decoder settings. Selected on 20 training trips (every 4th sorted id) using out-of-fold scores of a same-configuration refit of B's HGB (models/evaluate.py roster), a development selection and not held-out performance. Then evaluated once on student-test with the saved artifact scores (results/hmm/final_student_test_artifact.json). No re-tuning was done after any student-test result. See results/hmm/tuning_log_hist_gradient_boosting.csv and review_notes.md."
+  },
+  "hmm": {
+    "acc": 0.9280793319415449,
+    "acc_ex3354": 0.9280793319415449,
+    "filled": 0,
+    "filled_correct": 0,
+    "no_cand": 0,
+    "truth_lost_pruning": 0,
+    "acc_trip_mean": 0.9364168237511213,
+    "disc_per_1k_changes": 111.59330440173589,
+    "disconnected": 360,
+    "changes": 3226,
+    "flips": 9,
+    "route_prec_sum": 0.9590466599530043,
+    "route_rec_sum": 0.9885813148788928,
+    "segs_ratio": 1.0411840411840412
+  },
+  "classifier_only": {
+    "acc": 0.8564718162839249,
+    "acc_ex3354": 0.8564718162839249,
+    "filled": 0,
+    "filled_correct": 0,
+    "no_cand": 0,
+    "truth_lost_pruning": 0,
+    "acc_trip_mean": 0.871523992757437,
+    "disc_per_1k_changes": 261.58133054684777,
+    "disconnected": 1502,
+    "changes": 5742,
+    "flips": 1296,
+    "route_prec_sum": 0.81048971312663,
+    "route_rec_sum": 0.9678200692041522,
+    "segs_ratio": 1.8507078507078507
+  },
+  "per_trip": [
+    {
+      "trip": "00000000",
+      "hmm_acc": 0.9776268477826608,
+      "clf_acc": 0.9392728725529365
+    },
+    {
+      "trip": "00000007",
+      "hmm_acc": 0.8899556868537666,
+      "clf_acc": 0.9401772525849336
+    },
+    {
+      "trip": "00000009",
+      "hmm_acc": 0.9122974261201144,
+      "clf_acc": 0.8617731172545281
+    },
+    {
+      "trip": "00000040",
+      "hmm_acc": 0.9539232053422371,
+      "clf_acc": 0.9098497495826378
+    },
+    {
+      "trip": "00000052",
+      "hmm_acc": 1.0,
+      "clf_acc": 0.9465648854961832
+    },
+    {
+      "trip": "00000056",
+      "hmm_acc": 0.9669024759979787,
+      "clf_acc": 0.8852956038403234
+    },
+    {
+      "trip": "00000065",
+      "hmm_acc": 0.9166666666666666,
+      "clf_acc": 0.8151041666666666
+    },
+    {
+      "trip": "00000076",
+      "hmm_acc": 0.971736204576043,
+      "clf_acc": 0.8687752355316285
+    },
+    {
+      "trip": "00000077",
+      "hmm_acc": 0.8322679621580159,
+      "clf_acc": 0.702889286627461
+    },
+    {
+      "trip": "00000091",
+      "hmm_acc": 0.9427917620137299,
+      "clf_acc": 0.8455377574370709
+    }
+  ],
+  "n_gap_restarts": 1,
+  "n_dead_restarts": 6,
+  "n_penalised_jumps": 0,
+  "n_pruned_rows": 25708
+}
