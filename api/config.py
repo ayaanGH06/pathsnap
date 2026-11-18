@@ -5,7 +5,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-VALID_PARTITIONS = ("train", "student_test")
+VALID_PARTITIONS = ("train", "student_test", "evaluator_test")
 
 
 LAN_ORIGIN_REGEX = (
