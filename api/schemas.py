@@ -43,6 +43,8 @@ class PredictionResponse(BaseModel):
     predicted_route: list[int]
     gps_observations: list[GPSObservation]
     map_geometry: MapGeometry
+    per_observation: list[int] | None = None
+    n_no_candidates: int = 0
     evaluation_metrics: dict[str, Any] | None = None
     timing: Timing | None = None
 

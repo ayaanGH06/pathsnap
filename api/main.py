@@ -1,6 +1,7 @@
 """FastAPI application for PathSnap route prediction."""
 
 import logging
+import re
 import time
 import uuid
 from pathlib import Path
@@ -11,7 +12,8 @@ from fastapi.responses import JSONResponse
 
 from data_processing.loader import list_trips, load_trip
 
-from .config import get_settings
+from .config import LAN_ORIGIN_REGEX, get_settings
+from .evaluation import evaluate
 from .dependencies import PredictionNotReadyError, run_prediction_pipeline
 from .schemas import (
     ErrorResponse,
@@ -39,7 +41,8 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(settings.allowed_origins),
-        allow_credentials=True,
+        allow_origin_regex=LAN_ORIGIN_REGEX,
+        allow_credentials=False,
         allow_methods=["GET", "POST"],
         allow_headers=["*"],
     )
@@ -105,8 +108,10 @@ def create_app() -> FastAPI:
     )
     def predict(request: PredictionRequest) -> PredictionResponse:
         trip_id = request.trip_id.strip()
-        if not trip_id:
-            raise HTTPException(status_code=422, detail="trip_id must not be blank")
+        if not re.fullmatch(r"[0-9]{1,16}", trip_id):
+            raise HTTPException(
+                status_code=422, detail="trip_id must be 1-16 digits (e.g. 00000007)"
+            )
 
         try:
             track, nodes, arcs, _reference_route = load_trip(
@@ -125,7 +130,26 @@ def create_app() -> FastAPI:
                 detail=f"Trip data is unavailable: {exc}",
             ) from exc
 
-        result = run_prediction_pipeline(track=track, nodes=nodes, arcs=arcs)
+        result = run_prediction_pipeline(
+            track=track, nodes=nodes, arcs=arcs, trip_id=trip_id
+        )
+        logger.info(
+            "predicted trip=%s observations=%d route_arcs=%d no_candidates=%d",
+            trip_id, len(track), len(result.predicted_route), result.n_no_candidates,
+        )
+
+        # Accuracy is computed server-side AFTER prediction; reference data
+        # is never given to the predictor and never returned to the client.
+        metrics = result.evaluation_metrics
+        if metrics is None and result.per_observation is not None:
+            try:
+                metrics = evaluate(
+                    trip_id, settings.partition, track, nodes, arcs, result.per_observation
+                )
+            except Exception as exc:  # evaluation must not break prediction
+                logger.warning("evaluation unavailable for trip=%s: %s", trip_id, exc)
+        if metrics:
+            logger.info("evaluation trip=%s %s", trip_id, metrics)
 
         gps_observations = [
             GPSObservation(
@@ -135,30 +159,41 @@ def create_app() -> FastAPI:
             )
             for row in track.itertuples(index=False)
         ]
-        map_geometry = MapGeometry(
-            nodes=[
-                MapNode(node_id=index, lon=float(row.lon), lat=float(row.lat))
-                for index, row in enumerate(nodes.itertuples(index=False))
-            ],
-            arcs=[
-                MapArc(
-                    arc_id=index,
-                    from_node=int(row.from_node),
-                    to_node=int(row.to_node),
-                )
-                for index, row in enumerate(arcs.itertuples(index=False))
-            ],
-        )
+        map_geometry = _local_geometry(track, nodes, arcs, result.predicted_route)
         return PredictionResponse(
             trip_id=trip_id,
             predicted_route=result.predicted_route,
             gps_observations=gps_observations,
             map_geometry=map_geometry,
-            evaluation_metrics=result.evaluation_metrics,
+            per_observation=result.per_observation,
+            n_no_candidates=result.n_no_candidates,
+            evaluation_metrics=metrics,
             timing=Timing(**result.timing) if result.timing else None,
         )
 
     return app
+
+
+def _local_geometry(track, nodes, arcs, route, margin_deg=0.003) -> MapGeometry:
+    """Only roads near the GPS points plus the predicted route (full networks
+    can have tens of thousands of arcs)."""
+    import numpy as np
+
+    lon, lat = nodes["lon"].to_numpy(), nodes["lat"].to_numpy()
+    fn, tn = arcs["from_node"].to_numpy(), arcs["to_node"].to_numpy()
+    inside = (
+        (lon >= track["lon"].min() - margin_deg) & (lon <= track["lon"].max() + margin_deg)
+        & (lat >= track["lat"].min() - margin_deg) & (lat <= track["lat"].max() + margin_deg)
+    )
+    keep = inside[fn] & inside[tn]
+    if route:
+        keep[np.asarray(route, dtype=int)] = True
+    arc_ids = np.flatnonzero(keep)
+    used = np.unique(np.concatenate([fn[arc_ids], tn[arc_ids]])) if len(arc_ids) else []
+    return MapGeometry(
+        nodes=[MapNode(node_id=int(i), lon=float(lon[i]), lat=float(lat[i])) for i in used],
+        arcs=[MapArc(arc_id=int(i), from_node=int(fn[i]), to_node=int(tn[i])) for i in arc_ids],
+    )
 
 
 def pd_notna(value) -> bool:
