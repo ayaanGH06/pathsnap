@@ -1,15 +1,30 @@
-# HMM section (C11) - DRAFT, numbers are from interim scores and must be re-run with B's export
+# HMM decoder: design, tuning, and final evaluation
 
-**Hidden states.** One directed candidate arc per GPS observation, from A's candidate table (50 m radius). Directed because about 92% of arcs have a reverse twin with the same geometry. At most 20 candidates per point are kept (top 20 by classifier score; up to 148 exist).
+## Decoder design
 
-**Emissions.** Log of the classifier probability for each candidate, scaled by 0.5 (tuned), floor 1e-6. A Gaussian-on-distance baseline exists for tests. Current numbers use an interim reproduction of the untuned HistGradientBoosting model; B's export replaces it.
+Each hidden state is a directed road arc from the candidate set for one GPS observation. The saved HistGradientBoosting model supplies candidate-match probabilities as emission scores. The Viterbi decoder combines those scores across the trip and prefers transitions whose directed-network route distance is consistent with the GPS displacement and elapsed time. It penalizes reverse-twin turns and permits repeated arcs.
 
-**Transitions.** -|network route distance - straight GPS distance| / 5 m. Route distance uses the along-arc position of each candidate and a bounded shortest-path search on the directed network, using the real time gap. Same-arc stays cost the along-arc distance, repeated arcs are allowed, reverse-twin moves get a penalty of 15.
+The frozen settings are in [`hmm_config.json`](hmm_config.json). Key values include emission weight 0.5, a maximum of 20 candidates per observation, transition scale `beta_m=5`, reverse-twin penalty 15, a 120-second chain restart, and a maximum plausible speed of 45 m/s. If no candidate is available, the decoder can carry the nearest decoded neighbour's arc for up to 30 seconds. Filled values use predictions and timestamps only; they are still counted in the full observation denominator and are correct only when they match the reference.
 
-**Missing candidates and large gaps.** An observation with no candidate is bridged (time and distance span the gap) and shown as missing in the output, never dropped; it counts as wrong in accuracy unless the optional fill produces the reference arc (9% of filled points were right on the tuning trips). A gap over 120 s restarts the chain. Trip 54 (16,519 of 19,313 points without candidates) shows the limit: the decoder cannot recover roads it was never offered.
+## Tuning protocol
 
-**Disconnected segments.** If no path exists within the search bound, or it would need more than 45 m/s, the move is forbidden and the chain restarts at that step (tuned over a penalty of 8, 20 or 40, which all scored lower). On student-test this happened 6 times in 19,160 observations, plus 1 long-gap restart.
+Decoder settings were selected on 20 of the 80 training trips using out-of-fold scores. The tuning objective excluded trips 00000033 and 00000054 because their 50 m candidate coverage is unusually poor; the all-trip results were retained and reported as well. These are development-selection results, not an independent estimate of performance. Student-test and evaluator-test labels were not used to tune the decoder.
 
-**Did the HMM improve the route? (development run)** Student-test pointwise accuracy 85.65% to 92.81%, direction flips 1,296 to 9, segment count 1.85x to 1.04x the reference. Improved on 9 of 10 trips. It did not help on trip 7 (94.0% to 89.0%): every error was the reverse twin of the correct arc. Across student-test 47% of the remaining errors are reverse twins, so direction is the main weakness. Details and per-trip table: `results/hmm/c9_comparison.md`. Maps are generated locally by `viz/make_prediction_map.py` (they contain raw coordinates, so they are not committed); direction errors need an arrow or colour-by-direction view, the current plots do not show them.
+The final student-test evaluation used B's saved model artifact and the frozen decoder configuration. The evaluator-test was a separate frozen run: no fitting, tuning, or selection used its labels, and each reference route was opened only after prediction. The run evidence is saved in [`results/hmm/final_student_test_artifact.json`](../results/hmm/final_student_test_artifact.json) and [`results/hmm/evaluator_frozen_run_evidence.json`](../results/hmm/evaluator_frozen_run_evidence.json).
 
-**Caveats.** Tuned on 20 training trips only. Interim scores. Trips 33 and 54 (train) have candidate-coverage problems from candidate generation, not from the decoder.
+## Results
+
+Pointwise accuracy is computed over every GPS observation. Missing or incorrect predictions count as wrong. The two partitions are separate runs and must not be averaged.
+
+| Partition | Observations | Classifier alone | Classifier + HMM | HMM correct |
+|---|---:|---:|---:|---:|
+| Student-test, 10 trips | 19,160 | 85.80% | 93.52% | 17,919 / 19,160 |
+| Evaluator-test, 10 trips | 19,674 | 79.93% | 94.72% | 18,636 / 19,674 |
+
+On student-test, mean per-trip accuracy increased from 87.41% to 93.94%. Direction flips between consecutive predictions fell from 1,308 to 9, and the predicted-to-reference segment-count ratio fell from 1.85 to 1.04. The HMM improved pooled accuracy, but it did not help every trip: trip 00000007 scored 96.01% with the classifier alone and 89.07% with the decoder. Per-trip results and other diagnostics are in the saved evidence and the integrated report section [`report/section7.md`](../report/section7.md).
+
+On evaluator-test, 21 observations had no candidate within 50 m; all were on trip 00000015. The frozen carry rule filled all 21 from neighbouring decoded predictions, and 12 of those fills matched the reference. All remain in the denominator. The HMM reached 94.72% overall, with per-trip accuracy from 88.53% to 99.71%; this is one frozen run, not a guarantee for every trip.
+
+## Limitations
+
+The decoder can only choose among roads supplied by candidate generation. It cannot recover a correct road missing from the 50 m candidate pool. Direction remains a weakness: geometrically overlapping forward and reverse arcs can confuse the classifier and decoder, as trip 00000007 shows. Macro set overlap and segment counts describe route structure but are not full sequence accuracy; the headline measure here is pointwise accuracy.
