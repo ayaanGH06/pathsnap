@@ -42,7 +42,7 @@ def test_valid_prediction_response_and_no_route_leak(monkeypatch, client):
     monkeypatch.setattr("api.main.load_trip", fake_load)
     monkeypatch.setattr(
         "api.main.run_prediction_pipeline",
-        lambda track, nodes, arcs: PipelineResult(
+        lambda track, nodes, arcs, trip_id=None: PipelineResult(
             predicted_route=[0],
             evaluation_metrics={"accuracy": 0.75},
             timing={"total_ms": 12.5},
@@ -67,7 +67,7 @@ def test_missing_trip(client, monkeypatch):
             FileNotFoundError(trip_id)
         ),
     )
-    response = client.post("/predict", json={"trip_id": "missing"})
+    response = client.post("/predict", json={"trip_id": "00000099"})
     assert response.status_code == 404
     assert "not found" in response.json()["detail"].lower()
 
@@ -80,9 +80,13 @@ def test_pipeline_not_ready(monkeypatch, client):
         "api.main.load_trip",
         lambda trip_id, partition, with_route=True: (track, nodes, arcs, None),
     )
+    def boom():
+        raise RuntimeError("no model")
+
+    monkeypatch.setattr("api.pipeline.get_pipeline", boom)
     response = client.post("/predict", json={"trip_id": "00000001"})
     assert response.status_code == 503
-    assert "not ready" in response.json()["detail"].lower()
+    assert "could not be loaded" in response.json()["detail"].lower()
 
 
 @pytest.mark.parametrize("payload", [{}, {"trip_id": ""}, {"trip_id": " " * 2}])
