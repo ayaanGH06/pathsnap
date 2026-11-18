@@ -1,2 +1,5 @@
-# PathSnap dependencies.
-# Filled in as the project is built; install with: pip install -r requirements.txt
+# PathSnap core/model dependencies. Install with: pip install -r requirements.txt
+numpy>=1.26
+pandas>=2.1
+scikit-learn>=1.4
+pyarrow>=14.0  # Required for Parquet candidate tables; CSV fallback also works.
