@@ -29,3 +29,4 @@ Viterbi over the observation sequence picks the highest-scoring sequence instead
 | 2026-11-18 | Classifier posterior as practical emission score | C (Ayaan) | Uses features beyond distance; C9 decides vs baseline |
 | 2026-11-18 | Transitions prefer same-arc / network-reachable moves as a heuristic, scored by network distance vs actual dt | C (Ayaan) | Brief reports ~8 points per arc; heuristic to be validated |
 | 2026-11-18 | Unreachable pairs deferred to C3/C4 | C (Ayaan) | No jump/fallback rule before the transition model is designed |
+| 2026-11-18 | C2 skeleton interface: per-observation candidate lists (variable counts, limit 20), -inf marks impossible moves, an unreachable step raises NoFeasiblePathError; gap recovery stays with C4 | C (Ayaan) | Matches the decode() contract without a network-sized matrix; fails loudly instead of guessing a policy |
